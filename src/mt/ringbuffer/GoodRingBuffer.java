@@ -1,55 +1,55 @@
 package mt.ringbuffer;
 
+import java.lang.ProcessBuilder.Redirect;
+
 public class GoodRingBuffer implements RingBuffer {
-	
+
 	private final int[] buffer;
-    private long readCount;
-    private long writeCount;
-    
-    private final Object guard = new Object();
-    
-    private boolean readersWaiting = false;
-    private boolean writersWaiting = false;
-    
-    public GoodRingBuffer(int size) {
-        buffer = new int[size];
-    }
-    
+	private long readCount;
+	private long writeCount;
+
+	private final Object readerGuard = new Object();
+	private final Object writerGuard = new Object();
+
+	public GoodRingBuffer(int size) {
+		buffer = new int[size];
+	}
+
 	@Override
-	public int  get() throws InterruptedException {		
-		synchronized(guard){
-			while(readCount >= writeCount) {
-				readersWaiting = true;
-				guard.wait();
+	public int get() throws InterruptedException {
+		int result;
+		synchronized (readerGuard) {
+
+			while (readCount >= writeCount) {
+				readerGuard.wait();
 			}
-				
 			int readIndex = (int) (readCount % buffer.length);
-	        readCount++;
-	        if(writeCount < readCount + buffer.length && writersWaiting){
-	        	readersWaiting = false;
-				writersWaiting = false;
-				guard.notifyAll();
-			}
-	        return buffer[readIndex];
+			result = buffer[readIndex];
+			readCount++;
 		}
+		synchronized (writerGuard) {
+			if (writeCount < readCount + buffer.length) {
+				writerGuard.notifyAll();
+			}
+		}
+		return result;
+
 	}
 
 	@Override
 	public void put(int value) throws InterruptedException {
-		synchronized(guard){
-			while(writeCount >= readCount + buffer.length){
-				writersWaiting = true;
-				guard.wait();	
+		synchronized (writerGuard) {
+			while (writeCount >= readCount + buffer.length) {
+				writerGuard.wait();
 			}
-				
+
 			int writeIndex = (int) (writeCount % buffer.length);
 			buffer[writeIndex] = value;
 			writeCount++;
-			
-			if(readCount < writeCount && readersWaiting){
-				readersWaiting = false;
-				writersWaiting = false;
-				guard.notify();
+		}
+		synchronized (readerGuard) {
+			if (readCount < writeCount) {
+				readerGuard.notifyAll();
 			}
 		}
 	}
