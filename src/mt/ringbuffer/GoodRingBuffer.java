@@ -1,7 +1,5 @@
 package mt.ringbuffer;
 
-import java.lang.ProcessBuilder.Redirect;
-
 public class GoodRingBuffer implements RingBuffer {
 
 	private final int[] buffer;
@@ -29,7 +27,7 @@ public class GoodRingBuffer implements RingBuffer {
 		}
 		synchronized (writerGuard) {
 			if (writeCount < readCount + buffer.length) {
-				writerGuard.notifyAll();
+				writerGuard.notify();
 			}
 		}
 		return result;
@@ -49,7 +47,7 @@ public class GoodRingBuffer implements RingBuffer {
 		}
 		synchronized (readerGuard) {
 			if (readCount < writeCount) {
-				readerGuard.notifyAll();
+				readerGuard.notify();
 			}
 		}
 	}
